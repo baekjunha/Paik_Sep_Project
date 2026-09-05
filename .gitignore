@@ -72,3 +72,14 @@ Plugins/**/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+
+
+# VPSync external marketplace/sample assets
+# Stored separately in Google Drive: VPSync_ExternalAssets
+/Content/Animations/
+/Content/Audio/
+/Content/Blueprints/
+/Content/Characters/
+/Content/Misc/
+/Content/SoulCity/
