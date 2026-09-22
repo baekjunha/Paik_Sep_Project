@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>VPSync Review Pad</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #111;
+    color: #eee;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 10px; }
+  .sub { opacity: .75; margin-bottom: 12px; font-size: 14px; }
+  canvas {
+    width: 100%;
+    height: 62vh;
+    display: block;
+    background: #fff;
+    border-radius: 12px;
+    touch-action: none;
+  }
+  .buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  button {
+    min-height: 54px;
+    border: 0;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  #clear { background: #333; color: #fff; }
+  #send { background: #e8e8e8; color: #111; }
+  #status {
+    margin-top: 10px;
+    min-height: 24px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    word-break: break-all;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>VPSync Review Pad</h1>
+  <div class="sub">Apple Pencil / 손가락으로 그린 뒤 SEND</div>
+  <canvas id="pad"></canvas>
+
+  <div class="buttons">
+    <button id="clear">CLEAR</button>
+    <button id="send">SEND</button>
+  </div>
+
+  <div id="status">Ready</div>
+</div>
+
+<script>
+const PRESET = "RC_VPSyncOperator";
+const FUNCTION_DISPLAY_NAME = "Receive Review Drawing";
+
+const ENDPOINT = "/vpsync/review-drawing";
+
+const canvas = document.getElementById("pad");
+const ctx = canvas.getContext("2d");
+const statusEl = document.getElementById("status");
+
+let strokes = [];
+let currentStroke = null;
+let drawing = false;
+let lastPixelPoint = null;
+
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#111";
+
+  redraw();
+}
+
+function redraw() {
+  const rect = canvas.getBoundingClientRect();
+  ctx.clearRect(0, 0, rect.width, rect.height);
+
+  for (const stroke of strokes) {
+    if (stroke.length < 2) continue;
+    ctx.beginPath();
+    ctx.moveTo(stroke[0].x * rect.width, stroke[0].y * rect.height);
+    for (let i = 1; i < stroke.length; i++) {
+      ctx.lineTo(stroke[i].x * rect.width, stroke[i].y * rect.height);
+    }
+    ctx.stroke();
+  }
+}
+
+function pointFromEvent(e) {
+  const rect = canvas.getBoundingClientRect();
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+
+  return {
+    px, py,
+    x: Math.max(0, Math.min(1, px / rect.width)),
+    y: Math.max(0, Math.min(1, py / rect.height))
+  };
+}
+
+function farEnough(a, b) {
+  if (!a || !b) return true;
+  const dx = a.px - b.px;
+  const dy = a.py - b.py;
+  return (dx * dx + dy * dy) >= 9; // 약 3px 이상 이동했을 때만 저장
+}
+
+canvas.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  canvas.setPointerCapture(e.pointerId);
+
+  drawing = true;
+  currentStroke = [];
+  strokes.push(currentStroke);
+
+  const p = pointFromEvent(e);
+  currentStroke.push({x: p.x, y: p.y});
+  lastPixelPoint = p;
+
+  ctx.beginPath();
+  ctx.moveTo(p.px, p.py);
+});
+
+canvas.addEventListener("pointermove", e => {
+  if (!drawing || !currentStroke) return;
+  e.preventDefault();
+
+  const p = pointFromEvent(e);
+  if (!farEnough(p, lastPixelPoint)) return;
+
+  currentStroke.push({x: p.x, y: p.y});
+  ctx.lineTo(p.px, p.py);
+  ctx.stroke();
+
+  lastPixelPoint = p;
+});
+
+function endStroke(e) {
+  if (!drawing) return;
+  e.preventDefault();
+  drawing = false;
+  currentStroke = null;
+  lastPixelPoint = null;
+}
+
+canvas.addEventListener("pointerup", endStroke);
+canvas.addEventListener("pointercancel", endStroke);
+
+document.getElementById("clear").addEventListener("click", () => {
+  strokes = [];
+  redraw();
+  statusEl.textContent = "Cleared";
+});
+
+function serializeStrokes() {
+  // Stroke 구분: |
+  // Point 구분: ;
+  // X,Y는 0~1 정규화 값
+  return strokes
+    .filter(s => s.length > 0)
+    .map(stroke =>
+      stroke.map(p => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(";")
+    )
+    .join("|");
+}
+
+document.getElementById("send").addEventListener("click", async () => {
+  const drawingData = serializeStrokes();
+
+  if (!drawingData) {
+    statusEl.textContent = "그림이 없습니다.";
+    return;
+  }
+
+  statusEl.textContent = `Sending ${drawingData.length} chars...`;
+
+  try {
+const res = await fetch(ENDPOINT, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    DrawingData: drawingData
+  })
+});
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${text}`);
+    }
+
+    statusEl.textContent =
+      `PASS | strokes=${strokes.length} | chars=${drawingData.length}`;
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = `FAIL | ${err.message}`;
+  }
+});
+
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+</script>
+</body>
+</html>
