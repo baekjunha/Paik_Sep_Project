@@ -35,6 +35,10 @@
 		{
 			"Name": "VirtualCamera",
 			"Enabled": true
+		},
+		{
+			"Name": "MetaHumanCharacter",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [
