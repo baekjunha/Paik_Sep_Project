@@ -3,6 +3,16 @@
 	"EngineAssociation": "5.7",
 	"Category": "",
 	"Description": "",
+	"Modules": [
+		{
+			"Name": "Paik_Sep_Project",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine"
+			]
+		}
+	],
 	"Plugins": [
 		{
 			"Name": "nDisplay",
@@ -50,6 +60,10 @@
 		},
 		{
 			"Name": "MotionTrajectory",
+			"Enabled": true
+		},
+		{
+			"Name": "BlueprintFlowAnalyzer",
 			"Enabled": true
 		}
 	],
