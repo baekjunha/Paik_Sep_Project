@@ -39,8 +39,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
     const FReviewRecord&, Review
 );
 
-UCLASS()
-class UReviewSubsystem : public UGameInstanceSubsystem
+UCLASS(BlueprintType)
+class PAIK_SEP_PROJECT_API UReviewSubsystem : public UGameInstanceSubsystem
 {
     GENERATED_BODY()
 

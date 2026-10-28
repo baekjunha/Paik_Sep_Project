@@ -62,25 +62,15 @@ static FString MakeJsonFromReview(
     TSharedPtr<FJsonObject> JsonObject =
         MakeShareable(new FJsonObject());
 
-    JsonObject->SetStringField(
-        TEXT("shotName"),
-        Review.ShotName
-    );
+    JsonObject->SetStringField(TEXT("shotName"), Review.ShotName );
 
-    JsonObject->SetStringField(
-        TEXT("drawingData"),
-        Review.DrawingData
-    );
+    JsonObject->SetStringField(TEXT("drawingData"),Review.DrawingData);
 
     FString JsonString;
 
-    TSharedRef<TJsonWriter<>> Writer =
-        TJsonWriterFactory<>::Create(&JsonString);
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
 
-    FJsonSerializer::Serialize(
-        JsonObject.ToSharedRef(),
-        Writer
-    );
+    FJsonSerializer::Serialize(JsonObject.ToSharedRef(),Writer);
 
     return JsonString;
 }
