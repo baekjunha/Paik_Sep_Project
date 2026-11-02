@@ -2,9 +2,11 @@
 
 
 #include "VPShotLibrary.h"
-#include "LevelSequence.h"
 #include "MovieScene.h"
 #include "Tracks/MovieSceneCinematicShotTrack.h"
+#include "Runtime/LevelSequence/Public/LevelSequence.h"
+#include "Tracks/MovieSceneCinematicShotTrack.h"
+
 
 int32 UVPShotLibrary::GetMasterShotCount(ULevelSequence* MasterSequence)
 {	
@@ -14,7 +16,7 @@ int32 UVPShotLibrary::GetMasterShotCount(ULevelSequence* MasterSequence)
 	UMovieScene* MovieScene = MasterSequence->GetMovieScene();
 	if (!MovieScene) 
 		return 0;
-	UMovieSceneCinematicShotTrack* ShotTrack = MovieScene->FindTrack<UMovieSceneCinematicShotTrack>();
+	UMovieSceneCinematicShotTrack* ShoBtTrack = MovieScene->FindTrack<UMovieSceneCinematicShotTrack>();
 
 	if (!ShotTrack)
 		return 0;

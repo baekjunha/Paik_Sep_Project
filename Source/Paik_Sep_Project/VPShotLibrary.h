@@ -18,5 +18,5 @@ class PAIK_SEP_PROJECT_API UVPShotLibrary : public UBlueprintFunctionLibrary
 	
 public:
 	UFUNCTION(BlueprintCallable)
-	static int32 GetMasterShotCount(ULevelSequence*);
+	static int32 GetMasterShotCount(ULevelSequence* MasterSequence);
 };
