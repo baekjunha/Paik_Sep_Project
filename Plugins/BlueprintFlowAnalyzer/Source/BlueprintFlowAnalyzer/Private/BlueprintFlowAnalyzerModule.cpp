@@ -7,10 +7,16 @@
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Engine/Blueprint.h"
+#include "Engine/Level.h"
+#include "Engine/LevelScriptBlueprint.h"
+#include "Engine/SCS_Node.h"
+#include "Engine/SimpleConstructionScript.h"
+#include "Engine/World.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformMisc.h"
 #include "Json.h"
 #include "K2Node_CallFunction.h"
+#include "EdGraphSchema_K2.h"
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
@@ -40,6 +46,47 @@ namespace BPFA
         return Guid.ToString(EGuidFormats::DigitsWithHyphens);
     }
 
+    static FString ContainerTypeString(const EPinContainerType ContainerType)
+    {
+        switch (ContainerType)
+        {
+        case EPinContainerType::Array: return TEXT("array");
+        case EPinContainerType::Set: return TEXT("set");
+        case EPinContainerType::Map: return TEXT("map");
+        default: return TEXT("none");
+        }
+    }
+
+    static FString PropertyTypeString(const FProperty* Property)
+    {
+        if (!Property) { return FString(); }
+        FString ExtendedType;
+        return Property->GetCPPType(&ExtendedType) + ExtendedType;
+    }
+
+    static FObjectJson PinTypeToJson(const FEdGraphPinType& PinType)
+    {
+        const FObjectJson Result = NewObject();
+        Result->SetStringField(TEXT("category"), PinType.PinCategory.ToString());
+        Result->SetStringField(TEXT("subcategory"), PinType.PinSubCategory.ToString());
+        Result->SetStringField(TEXT("subcategory_object"), PinType.PinSubCategoryObject.IsValid()
+            ? PinType.PinSubCategoryObject->GetPathName() : FString());
+        Result->SetStringField(TEXT("container"), ContainerTypeString(PinType.ContainerType));
+        Result->SetBoolField(TEXT("is_reference"), PinType.bIsReference);
+        Result->SetBoolField(TEXT("is_const"), PinType.bIsConst);
+        Result->SetBoolField(TEXT("is_weak_pointer"), PinType.bIsWeakPointer);
+        return Result;
+    }
+
+    static FString GraphKind(const UBlueprint* Blueprint, const UEdGraph* Graph)
+    {
+        if (Blueprint->FunctionGraphs.Contains(Graph)) { return TEXT("function"); }
+        if (Blueprint->MacroGraphs.Contains(Graph)) { return TEXT("macro"); }
+        if (Blueprint->DelegateSignatureGraphs.Contains(Graph)) { return TEXT("delegate_signature"); }
+        if (Blueprint->UbergraphPages.Contains(Graph)) { return TEXT("event"); }
+        return TEXT("nested_or_generated");
+    }
+
     static bool WriteJson(const FString& FilePath, const FObjectJson& Root)
     {
         FString Text;
@@ -65,6 +112,7 @@ namespace BPFA
         Result->SetStringField(TEXT("direction"), Pin->Direction == EGPD_Input ? TEXT("input") : TEXT("output"));
         Result->SetStringField(TEXT("category"), Pin->PinType.PinCategory.ToString());
         Result->SetStringField(TEXT("subcategory"), Pin->PinType.PinSubCategory.ToString());
+        Result->SetObjectField(TEXT("type_details"), PinTypeToJson(Pin->PinType));
         Result->SetBoolField(TEXT("is_exec"), Pin->PinType.PinCategory == FName(TEXT("exec")));
         Result->SetStringField(TEXT("default_value"), Pin->DefaultValue);
         Result->SetStringField(TEXT("default_text"), Pin->DefaultTextValue.ToString());
@@ -147,13 +195,14 @@ namespace BPFA
         return Result;
     }
 
-    static FObjectJson GraphToJson(const UEdGraph* Graph, int32& InOutNodeCount, int32& InOutPinCount, int32& InOutLinkCount)
+    static FObjectJson GraphToJson(const UBlueprint* Blueprint, const UEdGraph* Graph, int32& InOutNodeCount, int32& InOutPinCount, int32& InOutLinkCount)
     {
         const FObjectJson Result = NewObject();
         Result->SetStringField(TEXT("name"), Graph->GetName());
         Result->SetStringField(TEXT("path"), Graph->GetPathName());
         Result->SetStringField(TEXT("id"), GuidString(Graph->GraphGuid));
         Result->SetStringField(TEXT("class"), Graph->GetClass()->GetPathName());
+        Result->SetStringField(TEXT("kind"), GraphKind(Blueprint, Graph));
         FObjectArray Nodes;
         for (const UEdGraphNode* Node : Graph->Nodes)
         {
@@ -173,6 +222,33 @@ namespace BPFA
         Result->SetStringField(TEXT("parent_class"), Blueprint->ParentClass ? Blueprint->ParentClass->GetPathName() : FString());
         Result->SetStringField(TEXT("generated_class"), Blueprint->GeneratedClass ? Blueprint->GeneratedClass->GetPathName() : FString());
 
+        FObjectArray Interfaces;
+        for (const FBPInterfaceDescription& InterfaceDescription : Blueprint->ImplementedInterfaces)
+        {
+            if (InterfaceDescription.Interface)
+            {
+                Interfaces.Add(MakeShared<FJsonValueString>(InterfaceDescription.Interface->GetPathName()));
+            }
+        }
+        Result->SetArrayField(TEXT("implemented_interfaces"), Interfaces);
+
+        FObjectArray Components;
+        if (Blueprint->SimpleConstructionScript)
+        {
+            for (const USCS_Node* Node : Blueprint->SimpleConstructionScript->GetAllNodes())
+            {
+                if (!Node) { continue; }
+                FObjectJson Component = NewObject();
+                Component->SetStringField(TEXT("variable_name"), Node->GetVariableName().ToString());
+                Component->SetStringField(TEXT("component_class"), Node->ComponentClass
+                    ? Node->ComponentClass->GetPathName() : FString());
+                Component->SetStringField(TEXT("template"), Node->ComponentTemplate
+                    ? Node->ComponentTemplate->GetPathName() : FString());
+                Components.Add(ObjectValue(Component));
+            }
+        }
+        Result->SetArrayField(TEXT("components"), Components);
+
         FObjectArray Variables;
         for (const FBPVariableDescription& Variable : Blueprint->NewVariables)
         {
@@ -180,12 +256,64 @@ namespace BPFA
             V->SetStringField(TEXT("name"), Variable.VarName.ToString());
             V->SetStringField(TEXT("id"), GuidString(Variable.VarGuid));
             V->SetStringField(TEXT("type"), Variable.VarType.PinCategory.ToString());
+            V->SetObjectField(TEXT("type_details"), PinTypeToJson(Variable.VarType));
             V->SetBoolField(TEXT("replicated"), (Variable.PropertyFlags & CPF_Net) != 0);
             V->SetStringField(TEXT("rep_notify"), Variable.RepNotifyFunc.ToString());
             V->SetNumberField(TEXT("replication_condition"), static_cast<int32>(Variable.ReplicationCondition.GetValue()));
+            FString DefaultValue;
+            if (Blueprint->GeneratedClass)
+            {
+                if (const FProperty* Property = FindFProperty<FProperty>(Blueprint->GeneratedClass, Variable.VarName))
+                {
+                    V->SetStringField(TEXT("cpp_type"), PropertyTypeString(Property));
+                    if (UObject* DefaultObject = Blueprint->GeneratedClass->GetDefaultObject(false))
+                    {
+                        const void* ValueAddress = Property->ContainerPtrToValuePtr<void>(DefaultObject);
+                        Property->ExportTextItem_Direct(DefaultValue, ValueAddress, nullptr, DefaultObject, PPF_None);
+                    }
+                }
+            }
+            V->SetStringField(TEXT("default_value"), DefaultValue);
+            V->SetBoolField(TEXT("event_dispatcher"), Variable.VarType.PinCategory == UEdGraphSchema_K2::PC_MCDelegate);
             Variables.Add(ObjectValue(V));
         }
         Result->SetArrayField(TEXT("declared_variables"), Variables);
+
+        FObjectArray DeclaredFunctions;
+        for (const UEdGraph* FunctionGraph : Blueprint->FunctionGraphs)
+        {
+            if (!FunctionGraph) { continue; }
+            FObjectJson FunctionJson = NewObject();
+            FunctionJson->SetStringField(TEXT("name"), FunctionGraph->GetName());
+            if (Blueprint->GeneratedClass)
+            {
+                if (const UFunction* Function = Blueprint->GeneratedClass->FindFunctionByName(FunctionGraph->GetFName()))
+                {
+                    FunctionJson->SetStringField(TEXT("path"), Function->GetPathName());
+                    FunctionJson->SetBoolField(TEXT("pure"), Function->HasAnyFunctionFlags(FUNC_BlueprintPure));
+                    FunctionJson->SetBoolField(TEXT("const"), Function->HasAnyFunctionFlags(FUNC_Const));
+                    FunctionJson->SetBoolField(TEXT("net"), Function->HasAnyFunctionFlags(FUNC_Net));
+                    FunctionJson->SetBoolField(TEXT("server_rpc"), Function->HasAnyFunctionFlags(FUNC_NetServer));
+                    FunctionJson->SetBoolField(TEXT("client_rpc"), Function->HasAnyFunctionFlags(FUNC_NetClient));
+                    FunctionJson->SetBoolField(TEXT("multicast_rpc"), Function->HasAnyFunctionFlags(FUNC_NetMulticast));
+                    FunctionJson->SetBoolField(TEXT("reliable"), Function->HasAnyFunctionFlags(FUNC_NetReliable));
+                    FObjectArray Parameters;
+                    for (TFieldIterator<FProperty> It(Function); It && It->HasAnyPropertyFlags(CPF_Parm); ++It)
+                    {
+                        FObjectJson Parameter = NewObject();
+                        Parameter->SetStringField(TEXT("name"), It->GetName());
+                        Parameter->SetStringField(TEXT("type"), PropertyTypeString(*It));
+                        Parameter->SetBoolField(TEXT("return"), It->HasAnyPropertyFlags(CPF_ReturnParm));
+                        Parameter->SetBoolField(TEXT("out"), It->HasAnyPropertyFlags(CPF_OutParm));
+                        Parameter->SetBoolField(TEXT("reference"), It->HasAnyPropertyFlags(CPF_ReferenceParm));
+                        Parameters.Add(ObjectValue(Parameter));
+                    }
+                    FunctionJson->SetArrayField(TEXT("parameters"), Parameters);
+                }
+            }
+            DeclaredFunctions.Add(ObjectValue(FunctionJson));
+        }
+        Result->SetArrayField(TEXT("declared_functions"), DeclaredFunctions);
 
         // Every graph owned by this asset, including nested state-machine and
         // transition graphs. No need to open each graph in the editor.
@@ -207,7 +335,7 @@ namespace BPFA
         FObjectArray GraphItems;
         for (const UEdGraph* Graph : Graphs)
         {
-            GraphItems.Add(ObjectValue(GraphToJson(Graph, InOutNodeCount, InOutPinCount, InOutLinkCount)));
+            GraphItems.Add(ObjectValue(GraphToJson(Blueprint, Graph, InOutNodeCount, InOutPinCount, InOutLinkCount)));
             ++InOutGraphCount;
         }
         Result->SetArrayField(TEXT("graphs"), GraphItems);
@@ -265,6 +393,36 @@ namespace BPFA
             else { ++Successful; }
             Blueprints.Add(ObjectValue(Exported));
         }
+
+        const FString EntryWorldObjectPath(TEXT("/Game/Junha_Made/Maps/Paik_Map/LV_SC01.LV_SC01"));
+        UWorld* EntryWorld = LoadObject<UWorld>(nullptr, *EntryWorldObjectPath);
+        if (EntryWorld && EntryWorld->PersistentLevel)
+        {
+            if (UBlueprint* LevelBlueprint = EntryWorld->PersistentLevel->GetLevelScriptBlueprint(true))
+            {
+                const FObjectJson Exported = BlueprintToJson(LevelBlueprint, GraphCount, NodeCount, PinCount, LinkCount);
+                Exported->SetStringField(TEXT("embedded_in_map"), EntryWorldObjectPath);
+                if (Exported->GetStringField(TEXT("status")) == TEXT("no_graphs")) { ++NoGraphs; }
+                else { ++Successful; }
+                Blueprints.Add(ObjectValue(Exported));
+            }
+            else
+            {
+                FObjectJson Error = NewObject();
+                Error->SetStringField(TEXT("asset"), EntryWorldObjectPath);
+                Error->SetStringField(TEXT("error"), TEXT("Level Script Blueprint was not found"));
+                Errors.Add(ObjectValue(Error));
+                ++Failed;
+            }
+        }
+        else
+        {
+            FObjectJson Error = NewObject();
+            Error->SetStringField(TEXT("asset"), EntryWorldObjectPath);
+            Error->SetStringField(TEXT("error"), TEXT("Entry world or persistent level failed to load"));
+            Errors.Add(ObjectValue(Error));
+            ++Failed;
+        }
         Analysis->SetArrayField(TEXT("blueprints"), Blueprints);
         Analysis->SetArrayField(TEXT("errors"), Errors);
         const bool bAnalysisWritten = WriteJson(AnalysisFile, Analysis);
@@ -273,7 +431,7 @@ namespace BPFA
         Report->SetStringField(TEXT("schema_version"), TEXT("0.1"));
         Report->SetStringField(TEXT("status"), (!bAnalysisWritten || Failed > 0) ? TEXT("incomplete") : TEXT("completed"));
         Report->SetStringField(TEXT("analysis_file"), AnalysisFile);
-        Report->SetNumberField(TEXT("assets_discovered"), Assets.Num());
+        Report->SetNumberField(TEXT("assets_discovered"), Assets.Num() + 1);
         Report->SetNumberField(TEXT("blueprints_extracted"), Successful);
         Report->SetNumberField(TEXT("blueprints_without_graphs"), NoGraphs);
         Report->SetNumberField(TEXT("blueprints_failed"), Failed);
