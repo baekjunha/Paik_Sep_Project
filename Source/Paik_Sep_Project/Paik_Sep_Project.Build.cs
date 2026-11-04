@@ -9,9 +9,9 @@ public class Paik_Sep_Project : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
 		PublicDependencyModuleNames.AddRange(new string[] { 
-			"Core", "CoreUObject", "Engine", "InputCore" ,"HTTP","Json","JsonUtilities"});
+			"Core", "CoreUObject", "Engine", "InputCore" ,"HTTP","Json","JsonUtilities","LevelSequence"});
 
-		PrivateDependencyModuleNames.AddRange(new string[] {  });
+		PrivateDependencyModuleNames.AddRange(new string[] { "MovieScene", "MovieSceneTracks" });
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
