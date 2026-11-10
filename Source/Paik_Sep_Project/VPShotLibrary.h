@@ -20,7 +20,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	static int32 GetMasterShotCount(ULevelSequence* MasterSequence);
 
-	UFUNCTION(BlueprintCallable)
-	static UMovieSceneSequence* GetMasterShotSequence(ULevelSequence* MasterSequence, int32 ShotIndex);
+	/*UFUNCTION(BlueprintCallable)
+	static UMovieSceneSequence* GetMasterShotSequence(ULevelSequence* MasterSequence, int32 ShotIndex);*/
 
 };

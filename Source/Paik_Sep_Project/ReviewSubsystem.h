@@ -23,6 +23,9 @@ struct FReviewRecord
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Review")
     FString CreatedAt;
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Review")
+    int32 Frame = 0;
 };
 
 // POST 저장 완료 이벤트

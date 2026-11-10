@@ -29,23 +29,23 @@ int32 UVPShotLibrary::GetMasterShotCount(ULevelSequence* MasterSequence)
 }
 
 
-UMovieSceneSequence* UVPShotLibrary::GetMasterShotSequence(ULevelSequence* MasterSequence, int32 ShotIndex)
-{
-	if (!MasterSequence) return nullptr;
-	UMovieScene* MovieScene = MasterSequence->GetMovieScene();
-	if(!MovieScene) return nullptr;
-	
-	UMovieSceneCinematicShotTrack* ShotTrack = MovieScene->FindTrack<UMovieSceneCinematicShotTrack>();
-	if (!ShotTrack) return nullptr;
-
-	const TArray<UMovieSceneSection*>& Section = ShotTrack->GetAllSections();
-	if (Section.IsValidIndex(ShotIndex) == false) return nullptr;
-
-	UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section[ShotIndex]);
-
-
-
-}
+//UMovieSceneSequence* UVPShotLibrary::GetMasterShotSequence(ULevelSequence* MasterSequence, int32 ShotIndex)
+//{
+//	if (!MasterSequence) return nullptr;
+//	UMovieScene* MovieScene = MasterSequence->GetMovieScene();
+//	if(!MovieScene) return nullptr;
+//	
+//	UMovieSceneCinematicShotTrack* ShotTrack = MovieScene->FindTrack<UMovieSceneCinematicShotTrack>();
+//	if (!ShotTrack) return nullptr;
+//
+//	const TArray<UMovieSceneSection*>& Section = ShotTrack->GetAllSections();
+//	if (Section.IsValidIndex(ShotIndex) == false) return nullptr;
+//
+//	UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section[ShotIndex]);
+//
+//
+//
+//}
 
 
 

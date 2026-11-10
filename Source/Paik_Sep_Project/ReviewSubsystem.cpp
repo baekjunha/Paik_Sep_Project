@@ -66,6 +66,9 @@ static FString MakeJsonFromReview(
 
     JsonObject->SetStringField(TEXT("drawingData"),Review.DrawingData);
 
+    JsonObject->SetNumberField(TEXT("frame"), Review.Frame);
+
+
     FString JsonString;
 
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
