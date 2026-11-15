@@ -48,6 +48,22 @@ static bool JsonObjectToReview(
         OutResult.CreatedAt
     );
 
+    // [08-108 추가]
+    // JSON의 frame 값을 읽어 Unreal의 int32로 변환
+    double FrameValue = 0.0;
+
+    if (JsonObject->TryGetNumberField(
+        TEXT("frame"), FrameValue))
+    {
+        OutResult.Frame = static_cast<int32>(FrameValue);
+    }
+    // [08-109 추가]
+// 서버에서 이미지 파일명 읽기
+    JsonObject->TryGetStringField(
+        TEXT("screenshotFileName"),
+        OutResult.ScreenshotFileName
+    );
+
     return true;
 }
 
@@ -62,18 +78,30 @@ static FString MakeJsonFromReview(
     TSharedPtr<FJsonObject> JsonObject =
         MakeShareable(new FJsonObject());
 
-    JsonObject->SetStringField(TEXT("shotName"), Review.ShotName );
+    JsonObject->SetStringField(
+        TEXT("shotName"),
+        Review.ShotName
+    );
 
-    JsonObject->SetStringField(TEXT("drawingData"),Review.DrawingData);
+    JsonObject->SetStringField(
+        TEXT("drawingData"),
+        Review.DrawingData
+    );
 
-    JsonObject->SetNumberField(TEXT("frame"), Review.Frame);
-
+    JsonObject->SetNumberField(
+        TEXT("frame"),
+        Review.Frame
+    );
 
     FString JsonString;
 
-    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
+    TSharedRef<TJsonWriter<>> Writer =
+        TJsonWriterFactory<>::Create(&JsonString);
 
-    FJsonSerializer::Serialize(JsonObject.ToSharedRef(),Writer);
+    FJsonSerializer::Serialize(
+        JsonObject.ToSharedRef(),
+        Writer
+    );
 
     return JsonString;
 }
@@ -223,6 +251,7 @@ void UReviewSubsystem::OnGetReviewResponse(
             Reader,
             JsonObject
         );
+    
 
     if (!bParseSuccess || !JsonObject.IsValid())
     {
@@ -240,4 +269,3 @@ void UReviewSubsystem::OnGetReviewResponse(
         Result
     );
 }
-

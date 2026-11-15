@@ -26,6 +26,10 @@ struct FReviewRecord
 
     UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Review")
     int32 Frame = 0;
+
+    // 추가: Review에 연결된 PNG 파일명
+    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Review")
+    FString ScreenshotFileName;
 };
 
 // POST 저장 완료 이벤트
@@ -64,7 +68,7 @@ public:
 private:
 
     FString BaseUrl =
-        TEXT("http://localhost:5074/api/reviews");
+        TEXT("http://localhost:5000/api/reviews");
 
     void OnAddReviewResponse(
         FHttpRequestPtr Request,
