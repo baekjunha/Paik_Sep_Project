@@ -65,6 +65,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Review")
     void GetReview(int32 TargetId);
 
+    UFUNCTION(BlueprintCallable, Category = "Review")
+    void NotifyActiveReview(int32 ReviewId);
+
+    UFUNCTION(BlueprintCallable, Category = "Review")
+    void ReturnToLive();
+
+
 private:
 
     FString BaseUrl =

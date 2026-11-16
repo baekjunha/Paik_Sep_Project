@@ -268,4 +268,129 @@ void UReviewSubsystem::OnGetReviewResponse(
         bSuccess,
         Result
     );
+
+}
+
+
+void UReviewSubsystem::NotifyActiveReview(int32 ReviewId)
+{
+    if (ReviewId <= 0)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("Invalid active Review ID: %d"),
+            ReviewId
+        );
+        return;
+    }
+
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request =
+        FHttpModule::Get().CreateRequest();
+
+    Request->SetURL(
+        TEXT("http://127.0.0.1:30000/vpsync/active-review")
+    );
+
+    Request->SetVerb(TEXT("POST"));
+
+    Request->SetHeader(
+        TEXT("Content-Type"),
+        TEXT("application/json")
+    );
+
+    const FString JsonBody = FString::Printf(
+        TEXT("{\"mode\":\"ARCHIVE\",\"reviewId\":%d}"),
+        ReviewId
+    );
+
+    Request->SetContentAsString(JsonBody);
+
+    Request->OnProcessRequestComplete().BindLambda(
+        [](
+            FHttpRequestPtr HttpRequest,
+            FHttpResponsePtr HttpResponse,
+            bool bConnectedSuccessfully
+            )
+        {
+            const bool bSuccess =
+                bConnectedSuccessfully &&
+                HttpResponse.IsValid() &&
+                HttpResponse->GetResponseCode() == 200;
+
+            if (bSuccess)
+            {
+                UE_LOG(
+                    LogTemp,
+                    Log,
+                    TEXT("Active Review POST succeeded")
+                );
+            }
+            else
+            {
+                UE_LOG(
+                    LogTemp,
+                    Error,
+                    TEXT("Active Review POST failed")
+                );
+            }
+        }
+    );
+
+    Request->ProcessRequest();
+}
+
+
+void UReviewSubsystem::ReturnToLive()
+{
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request =
+        FHttpModule::Get().CreateRequest();
+
+    Request->SetURL(
+        TEXT("http://127.0.0.1:30000/vpsync/active-review")
+    );
+
+    Request->SetVerb(TEXT("POST"));
+
+    Request->SetHeader(
+        TEXT("Content-Type"),
+        TEXT("application/json")
+    );
+
+    const FString JsonBody = TEXT("{\"mode\":\"LIVE\"}");
+
+    Request->SetContentAsString(JsonBody);
+
+    Request->OnProcessRequestComplete().BindLambda(
+        [](
+            FHttpRequestPtr HttpRequest,
+            FHttpResponsePtr HttpResponse,
+            bool bConnectedSuccessfully
+            )
+        {
+            const bool bSuccess =
+                bConnectedSuccessfully &&
+                HttpResponse.IsValid() &&
+                HttpResponse->GetResponseCode() == 200;
+
+            if (bSuccess)
+            {
+                UE_LOG(
+                    LogTemp,
+                    Log,
+                    TEXT("Active Review POST succeeded")
+                );
+            }
+            else
+            {
+                UE_LOG(
+                    LogTemp,
+                    Error,
+                    TEXT("Active Review POST failed")
+                );
+            }
+        }
+    );
+
+    Request->ProcessRequest();
 }
