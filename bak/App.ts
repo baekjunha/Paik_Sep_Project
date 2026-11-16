@@ -22,6 +22,13 @@ import {
 
 export class App extends Server {
 
+  // 서버가 살아 있는 동안 유지되는 현재 Review 상태
+  private activeReviewId: number = -1;
+
+  // 같은 ID를 다시 LOAD해도 변경 이벤트로 인식
+  private activeReviewVersion: number = 0;
+
+
   constructor() {
     super();
 
@@ -316,7 +323,121 @@ export class App extends Server {
         }
 
       }
-    );
+      );
+
+
+      // =====================================================
+      // 08-137: Active Review State
+      //
+      // LIVE    : reviewId = -1
+      // ARCHIVE : reviewId > 0
+      // =====================================================
+
+      this.app.post(
+          '/vpsync/active-review',
+          (req: Request, res: Response) => {
+
+              const mode = req.body?.mode;
+              const reviewId = Number(req.body?.reviewId);
+
+              if (mode !== 'LIVE' && mode !== 'ARCHIVE') {
+                  return res.status(400).json({
+                      error: 'Invalid mode'
+                  });
+              }
+
+              if (
+                  mode === 'ARCHIVE' &&
+                  (!Number.isSafeInteger(reviewId) || reviewId <= 0)
+              ) {
+                  return res.status(400).json({
+                      error: 'Invalid Review ID'
+                  });
+              }
+
+              this.activeReviewId =
+                  mode === 'LIVE' ? -1 : reviewId;
+
+              // 동일 Review ID를 다시 LOAD했을 때도 갱신
+              this.activeReviewVersion += 1;
+
+              res.setHeader('Cache-Control', 'no-store');
+
+              return res.json({
+                  ok: true,
+                  mode: this.activeReviewId < 0
+                      ? 'LIVE'
+                      : 'ARCHIVE',
+                  reviewId: this.activeReviewId,
+                  version: this.activeReviewVersion
+              });
+          }
+      );
+
+      this.app.get(
+          '/vpsync/active-review',
+          (req: Request, res: Response) => {
+
+              res.setHeader('Cache-Control', 'no-store');
+
+              return res.json({
+                  mode: this.activeReviewId < 0
+                      ? 'LIVE'
+                      : 'ARCHIVE',
+                  reviewId: this.activeReviewId,
+                  version: this.activeReviewVersion
+              });
+          }
+      );
+
+      // 저장된 Review 메타데이터 중계
+      // iPad가 ASP.NET 서버에 직접 접근할 필요가 없도록 한다.
+
+      this.app.get(
+          '/vpsync/reviews/:id',
+          async (req: Request, res: Response) => {
+
+              const id = Number(req.params.id);
+
+              if (!Number.isSafeInteger(id) || id <= 0) {
+                  return res.status(400).json({
+                      error: 'Invalid Review ID'
+                  });
+              }
+
+              try {
+                  const apiResponse = await request
+                      .get(`http://127.0.0.1:5000/api/reviews/${id}`)
+                      .accept('application/json')
+                      .timeout({
+                          response: 5000,
+                          deadline: 10000
+                      });
+
+                  res.setHeader('Cache-Control', 'no-store');
+
+                  return res.json(apiResponse.body);
+
+              } catch (error: any) {
+
+                  if (error && error.status === 404) {
+                      return res.status(404).json({
+                          error: 'Review not found'
+                      });
+                  }
+
+                  console.error(
+                      'Review metadata proxy failed:',
+                      error
+                  );
+
+                  return res.status(502).json({
+                      error: 'Review metadata retrieval failed'
+                  });
+              }
+          }
+      );
+
 
   }
 

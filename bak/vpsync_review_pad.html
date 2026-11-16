@@ -2,496 +2,885 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>VPSync Review Pad</title>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1,
+               maximum-scale=1, user-scalable=no" />
+    <title>VPSync Review Pad</title>
 
-<style>
-  * {
-    box-sizing: border-box;
-  }
+    <style>
+        * {
+            box-sizing: border-box;
+        }
 
-  html, body {
-    touch-action: manipulation;
-  }
+        html, body {
+            touch-action: manipulation;
+        }
 
-  body {
-    margin: 0;
-    padding: 16px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #111;
-    color: #eee;
-  }
+        body {
+            margin: 0;
+            padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #111;
+            color: #eee;
+        }
 
-  .wrap {
-    max-width: 1000px;
-    margin: 0 auto;
-  }
+        .wrap {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
 
-  h1 {
-    font-size: 22px;
-    margin: 0 0 10px;
-  }
+        h1 {
+            font-size: 22px;
+            margin: 0 0 10px;
+        }
 
-  .sub {
-    opacity: .75;
-    margin-bottom: 12px;
-    font-size: 14px;
-  }
+        .sub {
+            opacity: .75;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
 
-  canvas {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 16 / 9;
-    display: block;
+        canvas {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16 / 9;
+            display: block;
+            background-image: url('/ScreenShot00002.png');
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: #111;
+            border-radius: 12px;
+            touch-action: none;
+        }
 
-    background-image: url('/ScreenShot00002.png');
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-color: #111;
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
+        }
 
-    border-radius: 12px;
-    touch-action: none;
-  }
+        button {
+            min-height: 54px;
+            border: 0;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 700;
+        }
 
-  .buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 12px;
-  }
+            button:disabled {
+                opacity: .45;
+                cursor: not-allowed;
+            }
 
-  button {
-    min-height: 54px;
-    border: 0;
-    border-radius: 10px;
-    font-size: 18px;
-    font-weight: 700;
-  }
+        #clear {
+            background: #333;
+            color: #fff;
+        }
 
-  #clear {
-    background: #333;
-    color: #fff;
-  }
+        #send {
+            background: #e8e8e8;
+            color: #111;
+        }
 
-  #send {
-    background: #e8e8e8;
-    color: #111;
-  }
-
-  #status {
-    margin-top: 10px;
-    min-height: 24px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 13px;
-    word-break: break-all;
-  }
-</style>
+        #status {
+            margin-top: 10px;
+            min-height: 24px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 13px;
+            word-break: break-all;
+        }
+    </style>
 </head>
 
 <body>
 
-<div class="wrap">
+    <div class="wrap">
 
-  <h1>VPSync Review Pad</h1>
+        <h1>VPSync Review Pad</h1>
 
-  <div class="sub">
-    Apple Pencil / 손가락으로 그린 뒤 SEND
-  </div>
+        <div class="sub">
+            LIVE: Apple Pencil로 필기 후 SEND
+            / ARCHIVE: 저장된 Review 확인
+        </div>
 
-  <canvas id="pad"></canvas>
+        <canvas id="pad"></canvas>
 
-  <div class="buttons">
-    <button id="clear">CLEAR</button>
-    <button id="send">SEND</button>
-  </div>
+        <div class="buttons">
+            <button id="clear">CLEAR</button>
+            <button id="send">SEND</button>
+        </div>
 
-  <div id="status">Ready</div>
+        <div id="status">Ready</div>
 
-</div>
+    </div>
 
-<script>
+    <script>
 
-const PRESET = "RC_VPSyncOperator";
-const FUNCTION_DISPLAY_NAME = "Receive Review Drawing";
+        // ======================================================
+        // 1. 서버 통신 설정
+        // ======================================================
 
-const ENDPOINT = "/vpsync/review-drawing";
+        const ENDPOINT = "/vpsync/review-drawing";
 
-const canvas = document.getElementById("pad");
-const ctx = canvas.getContext("2d");
-const statusEl = document.getElementById("status");
+        const ACTIVE_REVIEW_URL =
+            "/vpsync/active-review";
 
-let strokes = [];
-let currentStroke = null;
-let drawing = false;
-let lastPixelPoint = null;
+        const LIVE_IMAGE_URL =
+            "/ScreenShot00002.png";
 
+        const SYNC_INTERVAL_MS = 1500;
 
-// ======================================================
-// [08-128] 이미지 모드 관리
-//
-// LIVE    : Unreal F6 캡처 자동 갱신
-// ARCHIVE : 저장된 Review 이미지 표시용
-//
-// 현재는 LIVE만 사용.
-// ARCHIVE 진입과 이미지 조회는 다음 단계에서 구현.
-// ======================================================
 
-let imageMode = "LIVE";
+        // ======================================================
+        // 2. HTML 요소 참조
+        // ======================================================
 
+        const canvas = document.getElementById("pad");
+        const ctx = canvas.getContext("2d");
 
-// ======================================================
-// Canvas 크기 설정
-// ======================================================
+        const clearButton =
+            document.getElementById("clear");
 
-function resizeCanvas() {
+        const sendButton =
+            document.getElementById("send");
 
-  const rect = canvas.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
+        const statusEl =
+            document.getElementById("status");
 
-  canvas.width = Math.round(rect.width * dpr);
-  canvas.height = Math.round(rect.height * dpr);
 
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        // ======================================================
+        // 3. 필기 상태
+        // ======================================================
 
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = "#111";
+        let strokes = [];
 
-  redraw();
-}
+        let currentStroke = null;
 
+        let drawing = false;
 
-// ======================================================
-// 저장된 Stroke 다시 그리기
-// ======================================================
+        let lastPixelPoint = null;
 
-function redraw() {
 
-  const rect = canvas.getBoundingClientRect();
+        // ======================================================
+        // 4. 이미지 모드 관리
+        //
+        // LIVE:
+        //   Unreal F6 캡처 자동 갱신
+        //   Apple Pencil 필기 가능
+        //
+        // ARCHIVE:
+        //   저장된 Review 이미지 표시
+        //   저장된 DrawingData 복원
+        //   F6 자동 갱신 차단
+        //   읽기 전용
+        // ======================================================
 
-  ctx.clearRect(0, 0, rect.width, rect.height);
+        let imageMode = "LIVE";
 
-  for (const stroke of strokes) {
+        let lastCaptureVersion = null;
 
-    if (stroke.length < 2) continue;
 
-    ctx.beginPath();
+        // ======================================================
+        // 5. 활성 Review 동기화 상태
+        //
+        // version:
+        //   같은 Review ID를 다시 LOAD했을 때도
+        //   새로운 이벤트로 처리하기 위한 값
+        // ======================================================
 
-    ctx.moveTo(
-      stroke[0].x * rect.width,
-      stroke[0].y * rect.height
-    );
+        let lastAppliedReviewState = null;
 
-    for (let i = 1; i < stroke.length; i++) {
+        let activeReviewSyncBusy = false;
 
-      ctx.lineTo(
-        stroke[i].x * rect.width,
-        stroke[i].y * rect.height
-      );
 
-    }
+        // ======================================================
+        // 6. Canvas 크기 설정
+        // ======================================================
 
-    ctx.stroke();
-  }
-}
+        function resizeCanvas() {
 
+            const rect = canvas.getBoundingClientRect();
 
-// ======================================================
-// Pointer 좌표 정규화
-// ======================================================
+            const dpr = window.devicePixelRatio || 1;
 
-function pointFromEvent(e) {
+            canvas.width = Math.round(rect.width * dpr);
+            canvas.height = Math.round(rect.height * dpr);
 
-  const rect = canvas.getBoundingClientRect();
+            ctx.setTransform(
+                dpr, 0,
+                0, dpr,
+                0, 0
+            );
 
-  const px = e.clientX - rect.left;
-  const py = e.clientY - rect.top;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
 
-  return {
-    px,
-    py,
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "#111";
 
-    x: Math.max(
-      0,
-      Math.min(1, px / rect.width)
-    ),
+            redraw();
+        }
 
-    y: Math.max(
-      0,
-      Math.min(1, py / rect.height)
-    )
-  };
-}
 
+        // ======================================================
+        // 7. 저장된 Stroke 다시 그리기
+        // ======================================================
 
-// ======================================================
-// 최소 Stroke 이동 거리 검사
-// ======================================================
+        function redraw() {
 
-function farEnough(a, b) {
+            const rect = canvas.getBoundingClientRect();
 
-  if (!a || !b) return true;
+            ctx.clearRect(
+                0,
+                0,
+                rect.width,
+                rect.height
+            );
 
-  const dx = a.px - b.px;
-  const dy = a.py - b.py;
+            for (const stroke of strokes) {
 
-  // 약 3px 이상 이동했을 때만 저장
-  return (dx * dx + dy * dy) >= 9;
-}
+                if (stroke.length < 2) continue;
 
+                ctx.beginPath();
 
-// ======================================================
-// Apple Pencil 시작
-// ======================================================
+                ctx.moveTo(
+                    stroke[0].x * rect.width,
+                    stroke[0].y * rect.height
+                );
 
-canvas.addEventListener("pointerdown", e => {
+                for (let i = 1; i < stroke.length; i++) {
 
-  if (e.pointerType !== "pen") return;
+                    ctx.lineTo(
+                        stroke[i].x * rect.width,
+                        stroke[i].y * rect.height
+                    );
 
-  e.preventDefault();
+                }
 
-  canvas.setPointerCapture(e.pointerId);
+                ctx.stroke();
+            }
+        }
 
-  drawing = true;
 
-  currentStroke = [];
+        // ======================================================
+        // 8. Pointer 좌표 정규화
+        // ======================================================
 
-  strokes.push(currentStroke);
+        function pointFromEvent(e) {
 
-  const p = pointFromEvent(e);
+            const rect = canvas.getBoundingClientRect();
 
-  currentStroke.push({
-    x: p.x,
-    y: p.y
-  });
+            const px = e.clientX - rect.left;
+            const py = e.clientY - rect.top;
 
-  lastPixelPoint = p;
+            return {
+                px,
+                py,
 
-  ctx.beginPath();
-  ctx.moveTo(p.px, p.py);
-});
+                x: Math.max(
+                    0,
+                    Math.min(1, px / rect.width)
+                ),
 
+                y: Math.max(
+                    0,
+                    Math.min(1, py / rect.height)
+                )
+            };
+        }
 
-// ======================================================
-// Apple Pencil 이동
-// ======================================================
 
-canvas.addEventListener("pointermove", e => {
+        // ======================================================
+        // 9. 최소 Stroke 이동 거리 검사
+        // ======================================================
 
-  if (e.pointerType !== "pen") return;
+        function farEnough(a, b) {
 
-  if (!drawing || !currentStroke) return;
+            if (!a || !b) return true;
 
-  e.preventDefault();
+            const dx = a.px - b.px;
+            const dy = a.py - b.py;
 
-  const p = pointFromEvent(e);
+            return (dx * dx + dy * dy) >= 9;
+        }
 
-  if (!farEnough(p, lastPixelPoint)) return;
 
-  currentStroke.push({
-    x: p.x,
-    y: p.y
-  });
+        // ======================================================
+        // 10. Apple Pencil 시작
+        // ======================================================
 
-  ctx.lineTo(p.px, p.py);
-  ctx.stroke();
+        canvas.addEventListener("pointerdown", e => {
 
-  lastPixelPoint = p;
-});
+            // ARCHIVE 모드는 읽기 전용
+            if (imageMode !== "LIVE") return;
 
+            // 기존 Pencil 입력 정책 유지
+            if (e.pointerType !== "pen") return;
 
-// ======================================================
-// Apple Pencil 종료
-// ======================================================
+            e.preventDefault();
 
-function endStroke(e) {
+            canvas.setPointerCapture(e.pointerId);
 
-  if (e.pointerType !== "pen") return;
+            drawing = true;
 
-  if (!drawing) return;
+            currentStroke = [];
 
-  e.preventDefault();
+            strokes.push(currentStroke);
 
-  drawing = false;
-  currentStroke = null;
-  lastPixelPoint = null;
-}
+            const p = pointFromEvent(e);
 
-canvas.addEventListener("pointerup", endStroke);
-canvas.addEventListener("pointercancel", endStroke);
+            currentStroke.push({
+                x: p.x,
+                y: p.y
+            });
 
+            lastPixelPoint = p;
 
-// ======================================================
-// CLEAR
-// ======================================================
+            ctx.beginPath();
+            ctx.moveTo(p.px, p.py);
+        });
 
-document.getElementById("clear").addEventListener(
-  "click",
-  () => {
 
-    strokes = [];
+        // ======================================================
+        // 11. Apple Pencil 이동
+        // ======================================================
 
-    redraw();
+        canvas.addEventListener("pointermove", e => {
 
-    statusEl.textContent = "Cleared";
-  }
-);
+            if (imageMode !== "LIVE") return;
 
+            if (e.pointerType !== "pen") return;
 
-// ======================================================
-// Stroke 직렬화
-//
-// Stroke 구분 : |
-// Point 구분  : ;
-// 좌표        : 0~1 정규화
-// ======================================================
+            if (!drawing || !currentStroke) return;
 
-function serializeStrokes() {
+            e.preventDefault();
 
-  return strokes
-    .filter(s => s.length > 0)
-    .map(stroke =>
-      stroke.map(p =>
-        `${p.x.toFixed(4)},${p.y.toFixed(4)}`
-      ).join(";")
-    )
-    .join("|");
-}
+            const p = pointFromEvent(e);
 
+            if (!farEnough(p, lastPixelPoint)) return;
 
-// ======================================================
-// SEND
-// ======================================================
+            currentStroke.push({
+                x: p.x,
+                y: p.y
+            });
 
-document.getElementById("send").addEventListener(
-  "click",
-  async () => {
+            ctx.lineTo(p.px, p.py);
+            ctx.stroke();
 
-    const drawingData = serializeStrokes();
+            lastPixelPoint = p;
+        });
 
-    if (!drawingData) {
 
-      statusEl.textContent = "그림이 없습니다.";
+        // ======================================================
+        // 12. Apple Pencil 종료
+        // ======================================================
 
-      return;
-    }
+        function endStroke(e) {
 
-    statusEl.textContent =
-      `Sending ${drawingData.length} chars...`;
+            if (e.pointerType !== "pen") return;
 
-    try {
+            if (!drawing) return;
 
-      const res = await fetch(ENDPOINT, {
+            e.preventDefault();
 
-        method: "POST",
+            drawing = false;
+            currentStroke = null;
+            lastPixelPoint = null;
+        }
 
-        headers: {
-          "Content-Type": "application/json"
-        },
+        canvas.addEventListener("pointerup", endStroke);
+        canvas.addEventListener("pointercancel", endStroke);
 
-        body: JSON.stringify({
-          DrawingData: drawingData
-        })
-      });
 
-      const text = await res.text();
+        // ======================================================
+        // 13. CLEAR
+        // ======================================================
 
-      if (!res.ok) {
+        clearButton.addEventListener("click", () => {
 
-        throw new Error(
-          `HTTP ${res.status}: ${text}`
+            if (imageMode !== "LIVE") return;
+
+            strokes = [];
+
+            redraw();
+
+            statusEl.textContent = "Cleared";
+        });
+
+
+        // ======================================================
+        // 14. Stroke 직렬화
+        //
+        // Stroke 구분: |
+        // Point 구분 : ;
+        // 좌표       : 0~1 정규화
+        // ======================================================
+
+        function serializeStrokes() {
+
+            return strokes
+                .filter(stroke => stroke.length > 0)
+                .map(stroke =>
+                    stroke.map(point =>
+                        `${point.x.toFixed(4)},${point.y.toFixed(4)}`
+                    ).join(";")
+                )
+                .join("|");
+        }
+
+
+        // ======================================================
+        // 15. SEND
+        //
+        // 기존 PIE Controller 전달 API 유지
+        // ======================================================
+
+        sendButton.addEventListener("click", async () => {
+
+            if (imageMode !== "LIVE") return;
+
+            const drawingData = serializeStrokes();
+
+            if (!drawingData) {
+
+                statusEl.textContent = "그림이 없습니다.";
+
+                return;
+            }
+
+            statusEl.textContent =
+                `Sending ${drawingData.length} chars...`;
+
+            try {
+
+                const response = await fetch(ENDPOINT, {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        DrawingData: drawingData
+                    })
+                });
+
+                const responseText = await response.text();
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        `HTTP ${response.status}: ${responseText}`
+                    );
+                }
+
+                statusEl.textContent =
+                    `PASS | strokes=${strokes.length} | ` +
+                    `chars=${drawingData.length}`;
+
+            } catch (error) {
+
+                console.error(
+                    "Review drawing SEND failed:",
+                    error
+                );
+
+                statusEl.textContent =
+                    `FAIL | ${error.message}`;
+            }
+        });
+
+
+        // ======================================================
+        // 16. 저장된 DrawingData 역직렬화
+        //
+        // 예:
+        // 0.1,0.2;0.3,0.4|0.5,0.6;0.7,0.8
+        //
+        // 결과:
+        // Stroke 배열 → Point 배열
+        // ======================================================
+
+        function parseReviewDrawingData(data) {
+
+            if (
+                typeof data !== "string" ||
+                !data.trim()
+            ) {
+                return [];
+            }
+
+            return data
+                .split("|")
+                .map(strokeText => {
+
+                    return strokeText
+                        .split(";")
+                        .map(pointText => {
+
+                            const values = pointText.split(",");
+
+                            if (values.length !== 2) {
+                                return null;
+                            }
+
+                            const x = Number(values[0]);
+                            const y = Number(values[1]);
+
+                            if (
+                                !Number.isFinite(x) ||
+                                !Number.isFinite(y)
+                            ) {
+                                return null;
+                            }
+
+                            return {
+                                x: Math.max(0, Math.min(1, x)),
+                                y: Math.max(0, Math.min(1, y))
+                            };
+                        })
+                        .filter(point => point !== null);
+                })
+                .filter(stroke => stroke.length > 0);
+        }
+
+
+        // ======================================================
+        // 17. ARCHIVE 이미지 미리 로드
+        //
+        // 저장 PNG 요청이 실패한 경우
+        // 정상적으로 이미지가 표시됐다고 처리하지 않음
+        // ======================================================
+
+        function preloadImage(url) {
+
+            return new Promise((resolve, reject) => {
+
+                const image = new Image();
+
+                image.onload = () => resolve();
+
+                image.onerror = () => {
+                    reject(
+                        new Error("Archive image load failed")
+                    );
+                };
+
+                image.src = url;
+            });
+        }
+
+
+        // ======================================================
+        // 18. ARCHIVE 모드 진입
+        //
+        // Review ID
+        //   ↓
+        // 저장된 Review 메타데이터 GET
+        //   ↓
+        // 저장 PNG GET
+        //   ↓
+        // Canvas 배경 변경
+        //   ↓
+        // DrawingData 복원
+        // ======================================================
+
+        async function enterArchiveMode(reviewId, version) {
+
+            // 먼저 LIVE 자동 갱신을 차단
+            imageMode = "ARCHIVE";
+
+            // 진행 중인 Pencil 입력 종료
+            drawing = false;
+            currentStroke = null;
+            lastPixelPoint = null;
+
+            // 저장된 Review 메타데이터 조회
+            const response = await fetch(
+                `/vpsync/reviews/${reviewId}`,
+                {
+                    cache: "no-store"
+                }
+            );
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `Review metadata HTTP ${response.status}`
+                );
+            }
+
+            const review = await response.json();
+
+            if (typeof review.drawingData !== "string") {
+
+                throw new Error(
+                    "Invalid DrawingData response"
+                );
+            }
+
+            // 같은 Review 재LOAD 시 캐시 구분
+            const imageUrl =
+                `/vpsync/reviews/${reviewId}/image?v=${version}`;
+
+            // 이미지 로드 성공부터 확인
+            await preloadImage(imageUrl);
+
+            // 캡처 이미지 표시
+            canvas.style.backgroundImage =
+                `url("${imageUrl}")`;
+
+            // 저장된 필기 좌표 복원
+            strokes = parseReviewDrawingData(
+                review.drawingData
+            );
+
+            redraw();
+
+            // ARCHIVE에서는 읽기 전용
+            clearButton.disabled = true;
+            sendButton.disabled = true;
+
+            statusEl.textContent =
+                `ARCHIVE | Review ID ${reviewId} | ` +
+                `strokes=${strokes.length}`;
+        }
+
+
+        // ======================================================
+        // 19. LIVE 모드 복귀
+        //
+        // 저장 리뷰를 보고 있던 상태를 해제하고
+        // 최신 F6 캡처 갱신을 다시 허용
+        // ======================================================
+
+        function enterLiveMode() {
+
+            const wasArchive =
+                imageMode === "ARCHIVE";
+
+            imageMode = "LIVE";
+
+            drawing = false;
+            currentStroke = null;
+            lastPixelPoint = null;
+
+            // ARCHIVE에서 돌아오는 경우에만
+            // 저장된 Review 필기를 제거
+            if (wasArchive) {
+
+                strokes = [];
+
+                redraw();
+            }
+
+            // LIVE 이미지 갱신 재개
+            lastCaptureVersion = null;
+
+            canvas.style.backgroundImage =
+                `url("${LIVE_IMAGE_URL}")`;
+
+            clearButton.disabled = false;
+            sendButton.disabled = false;
+
+            statusEl.textContent = "LIVE";
+        }
+
+
+        // ======================================================
+        // 20. WebApp의 활성 Review 상태 조회
+        //
+        // POST는 Unreal에서 발생
+        // GET은 PC와 iPad가 각각 수행
+        // ======================================================
+
+        async function syncActiveReview() {
+
+            // 이전 Polling 요청이 끝나지 않았으면
+            // 새로운 요청을 중첩하지 않음
+            if (activeReviewSyncBusy) return;
+
+            activeReviewSyncBusy = true;
+
+            try {
+
+                const response = await fetch(
+                    ACTIVE_REVIEW_URL,
+                    {
+                        cache: "no-store"
+                    }
+                );
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        `Active Review HTTP ${response.status}`
+                    );
+                }
+
+                const state = await response.json();
+
+                const signature =
+                    `${state.mode}:${state.reviewId}:${state.version}`;
+
+                // 이전에 적용한 상태와 같으면
+                // 불필요한 재로드 방지
+                if (signature === lastAppliedReviewState) {
+                    return;
+                }
+
+                if (state.mode === "LIVE") {
+
+                    if (imageMode === "ARCHIVE") {
+
+                        enterLiveMode();
+
+                    } else {
+
+                        // 처음 페이지를 열었을 때
+                        // 사용 중인 LIVE 필기를 지우지 않음
+                        imageMode = "LIVE";
+
+                        clearButton.disabled = false;
+                        sendButton.disabled = false;
+                    }
+
+                } else if (
+                    state.mode === "ARCHIVE" &&
+                    Number.isSafeInteger(state.reviewId) &&
+                    state.reviewId > 0
+                ) {
+
+                    await enterArchiveMode(
+                        state.reviewId,
+                        state.version
+                    );
+
+                } else {
+
+                    throw new Error(
+                        "Invalid active review state"
+                    );
+                }
+
+                // 상태 반영에 성공했을 때만 기록
+                lastAppliedReviewState = signature;
+
+            } catch (error) {
+
+                console.error(
+                    "Active Review sync failed:",
+                    error
+                );
+
+                statusEl.textContent =
+                    `SYNC FAIL | ${error.message}`;
+
+            } finally {
+
+                activeReviewSyncBusy = false;
+            }
+        }
+
+
+        // ======================================================
+        // 21. F6 Screenshot 자동 갱신
+        //
+        // 1.5초마다 HEAD 요청
+        // ETag / Last-Modified 비교
+        //
+        // LIVE 상태에서만 갱신
+        // ======================================================
+
+        async function refreshLiveScreenshot() {
+
+            if (imageMode !== "LIVE") return;
+
+            try {
+
+                const response = await fetch(
+                    LIVE_IMAGE_URL,
+                    {
+                        method: "HEAD",
+                        cache: "no-store"
+                    }
+                );
+
+                if (!response.ok) return;
+
+                // 비동기 요청 중 ARCHIVE로 전환됐으면
+                // LIVE 이미지가 덮어쓰지 못하게 차단
+                if (imageMode !== "LIVE") return;
+
+                const version =
+                    response.headers.get("etag") ||
+                    response.headers.get("last-modified");
+
+                if (
+                    !version ||
+                    version === lastCaptureVersion
+                ) {
+                    return;
+                }
+
+                // 기존 필기 보호
+                if (
+                    drawing ||
+                    strokes.length > 0
+                ) {
+                    return;
+                }
+
+                lastCaptureVersion = version;
+
+                canvas.style.backgroundImage =
+                    `url("${LIVE_IMAGE_URL}?v=${encodeURIComponent(version)}")`;
+
+            } catch (error) {
+
+                console.error(
+                    "Screenshot refresh failed:",
+                    error
+                );
+            }
+        }
+
+
+        // ======================================================
+        // 22. 초기화 및 자동 Polling 시작
+        // ======================================================
+
+        // 화면 크기에 맞춰 Canvas 구성
+        window.addEventListener(
+            "resize",
+            resizeCanvas
         );
-      }
 
-      statusEl.textContent =
-        `PASS | strokes=${strokes.length} | chars=${drawingData.length}`;
+        resizeCanvas();
 
-    } catch (err) {
+        // LIVE Screenshot 갱신
+        setInterval(
+            refreshLiveScreenshot,
+            SYNC_INTERVAL_MS
+        );
 
-      console.error(err);
+        // 활성 Review 상태 Polling
+        setInterval(
+            syncActiveReview,
+            SYNC_INTERVAL_MS
+        );
 
-      statusEl.textContent =
-        `FAIL | ${err.message}`;
-    }
-  }
-);
+        // 최초 상태 확인
+        syncActiveReview();
 
+        // 최초 LIVE 이미지 확인
+        refreshLiveScreenshot();
 
-// ======================================================
-// Canvas 초기화 및 Resize
-// ======================================================
-
-window.addEventListener("resize", resizeCanvas);
-
-resizeCanvas();
-
-
-// ======================================================
-// F6 Screenshot 자동 갱신
-//
-// 1.5초마다 HEAD 요청
-// ETag / Last-Modified 비교
-//
-// LIVE 모드에서만 갱신
-// ARCHIVE 모드에서는 갱신하지 않음
-// ======================================================
-
-let lastCaptureVersion = null;
-
-setInterval(async () => {
-
-  // [08-128] 추가
-  // 저장된 Review를 보고 있을 때
-  // LIVE 이미지가 덮어쓰는 것을 방지
-  if (imageMode !== "LIVE") {
-    return;
-  }
-
-  try {
-
-    const response = await fetch(
-      "/ScreenShot00002.png",
-      {
-        method: "HEAD",
-        cache: "no-store"
-      }
-    );
-
-    if (!response.ok) return;
-
-    const version =
-      response.headers.get("etag") ||
-      response.headers.get("last-modified");
-
-    if (!version || version === lastCaptureVersion) {
-      return;
-    }
-
-    // 기존 필기 보호 로직 유지
-    if (drawing || strokes.length > 0) {
-      return;
-    }
-
-    lastCaptureVersion = version;
-
-    canvas.style.backgroundImage =
-      `url("/ScreenShot00002.png?v=${encodeURIComponent(version)}")`;
-
-  } catch (error) {
-
-    console.error(
-      "Screenshot refresh failed:",
-      error
-    );
-
-  }
-
-}, 1500);
-
-</script>
+    </script>
 
 </body>
 </html>
