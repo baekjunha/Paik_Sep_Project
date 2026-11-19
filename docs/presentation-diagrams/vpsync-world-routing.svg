@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs><linearGradient id="bg4" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#08111f"/><stop offset="1" stop-color="#122139"/></linearGradient><marker id="a4" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#7dd3fc"/></marker><marker id="r4" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#fb7185"/></marker><filter id="s4"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-opacity=".3"/></filter><style>.ti{font:700 40px 'Segoe UI','Malgun Gothic';fill:#f8fafc}.su{font:400 20px 'Segoe UI','Malgun Gothic';fill:#94a3b8}.zone{fill:#0f1d31;stroke:#334155;stroke-width:2}.editor{fill:#332347;stroke:#a78bfa;stroke-width:2}.pie{fill:#17372f;stroke:#34d399;stroke-width:2}.web{fill:#102f49;stroke:#38bdf8;stroke-width:2}.h{font:700 25px 'Segoe UI','Malgun Gothic';fill:#f8fafc}.t{font:500 19px 'Segoe UI','Malgun Gothic';fill:#e2e8f0}.sm{font:400 16px 'Segoe UI','Malgun Gothic';fill:#cbd5e1}.ok{fill:none;stroke:#7dd3fc;stroke-width:4;marker-end:url(#a4)}.bad{fill:none;stroke:#fb7185;stroke-width:4;stroke-dasharray:12 9;marker-end:url(#r4)}.mono{font:700 16px Consolas;fill:#fbbf24}.tag{font:700 18px Consolas;fill:#7dd3fc}</style></defs>
+  <rect width="1600" height="900" rx="28" fill="url(#bg4)"/><text x="70" y="72" class="ti">Editor World와 PIE World 라우팅</text><text x="70" y="108" class="su">PIE는 편집 중 레벨의 복제 세계다. 같은 이름의 Actor라도 Object Path와 생명주기가 다르다.</text>
+  <rect x="60" y="165" width="330" height="600" rx="24" class="zone"/><text x="90" y="210" class="h">요청 발신</text>
+  <rect x="95" y="270" width="260" height="140" rx="20" class="web" filter="url(#s4)"/><text x="125" y="314" class="h">ReviewPad / WebApp</text><text x="125" y="351" class="t">Remote Object Call</text><text x="125" y="383" class="mono">/remote/object/call</text>
+  <rect x="95" y="505" width="260" height="145" rx="20" class="web" filter="url(#s4)"/><text x="125" y="548" class="h">서버 라우터</text><text x="125" y="585" class="t">현재 실행 World 탐색</text><text x="125" y="617" class="sm">0개/복수면 중단 · 1개만 호출</text>
+  <path d="M225 410V505" class="ok"/>
+
+  <rect x="470" y="165" width="480" height="600" rx="24" class="zone"/><text x="500" y="210" class="h">Editor World</text>
+  <rect x="520" y="285" width="380" height="185" rx="20" class="editor" filter="url(#s4)"/><text x="550" y="330" class="tag">EDITOR INSTANCE</text><text x="550" y="370" class="h">BP_VPSessionController</text><text x="550" y="410" class="mono">/Game/.../LV_SC01:PersistentLevel...</text><text x="550" y="440" class="sm">편집·설정 대상 · 현재 플레이 Actor 아님</text>
+  <path d="M355 340 C410 340 450 375 520 375" class="bad"/><text x="395" y="318" class="t" fill="#fb7185">잘못된 고정 경로</text>
+  <rect x="520" y="555" width="380" height="110" rx="20" fill="#3a201a" stroke="#fb7185" stroke-width="2"/><text x="550" y="596" class="h">HTTP 200 ≠ 장면 동작 보장</text><text x="550" y="631" class="sm">요청 수신과 대상 Actor 실행을 분리 검증</text>
+
+  <rect x="1030" y="165" width="510" height="600" rx="24" class="zone"/><text x="1060" y="210" class="h">PIE World · 런타임 복제</text>
+  <rect x="1080" y="285" width="410" height="185" rx="20" class="pie" filter="url(#s4)"/><text x="1110" y="330" class="tag">RUNTIME INSTANCE</text><text x="1110" y="370" class="h">BP_VPSessionController_C</text><text x="1110" y="410" class="mono">UEDPIE_0_...:PersistentLevel...</text><text x="1110" y="440" class="sm">MasterSequencePlayer를 실제로 소유·제어</text>
+  <path d="M355 575 C650 575 845 375 1080 375" class="ok"/><text x="690" y="514" class="t">GetPIEWorlds → GetAllActorsOfClass → 정확히 1개</text>
+  <rect x="1080" y="555" width="410" height="110" rx="20" class="pie"/><text x="1110" y="596" class="h">성공 판정 = 두 단계</text><text x="1110" y="631" class="sm">HTTP 응답 + Unreal 함수 실행/상태 변화</text>
+
+  <rect x="60" y="800" width="1480" height="60" rx="18" fill="#17263c" stroke="#64748b"/><text x="90" y="838" class="t">현재 적용 범위: 단일 PIE World + 단일 Controller. Multi-PIE·패키징은 별도 대상 선택 규칙이 필요한 미검증 영역이다.</text>
+</svg>

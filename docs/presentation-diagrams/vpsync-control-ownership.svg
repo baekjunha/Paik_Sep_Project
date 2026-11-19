@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs><linearGradient id="bg3" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#08111f"/><stop offset="1" stop-color="#111f36"/></linearGradient><marker id="a3" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#7dd3fc"/></marker><filter id="s3"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-opacity=".3"/></filter><style>.ti{font:700 40px 'Segoe UI','Malgun Gothic';fill:#f8fafc}.su{font:400 20px 'Segoe UI','Malgun Gothic';fill:#94a3b8}.lane{fill:#0f1d31;stroke:#334155;stroke-width:2}.seq{fill:#332347;stroke:#a78bfa;stroke-width:2}.rc{fill:#102f49;stroke:#38bdf8;stroke-width:2}.cam{fill:#17372f;stroke:#34d399;stroke-width:2}.h{font:700 24px 'Segoe UI','Malgun Gothic';fill:#f8fafc}.t{font:500 19px 'Segoe UI','Malgun Gothic';fill:#e2e8f0}.sm{font:400 16px 'Segoe UI','Malgun Gothic';fill:#cbd5e1}.ln{fill:none;stroke:#7dd3fc;stroke-width:4;marker-end:url(#a3)}.muted{stroke:#64748b;stroke-width:3;stroke-dasharray:10 8}.step{font:700 18px Consolas;fill:#7dd3fc}.key{font:700 22px Consolas;fill:#fbbf24}</style></defs>
+  <rect width="1600" height="900" rx="28" fill="url(#bg3)"/><text x="70" y="72" class="ti">Camera Property 제어권 중재</text><text x="70" y="108" class="su">“Set 값이 실행됐는데 화면이 돌아오는” 문제는 값 전달 실패가 아니라 Sequencer와 RC의 소유권 충돌이다.</text>
+  <rect x="60" y="155" width="1480" height="155" rx="22" class="lane"/><text x="90" y="198" class="h">입력·상태 층</text>
+  <rect x="300" y="190" width="260" height="85" rx="18" class="rc" filter="url(#s3)"/><text x="330" y="225" class="h">RC_TargetFocal</text><text x="330" y="255" class="sm">사용자가 요청한 목표값</text>
+  <rect x="670" y="190" width="260" height="85" rx="18" class="lane"/><text x="700" y="225" class="h">LastAppliedValue</text><text x="700" y="255" class="sm">불필요한 반복 적용 방지</text>
+  <rect x="1040" y="190" width="260" height="85" rx="18" class="cam" filter="url(#s3)"/><text x="1070" y="225" class="h">Actual Component</text><text x="1070" y="255" class="sm">현재 CineCamera 실제값</text>
+  <path d="M560 232H670" class="ln"/><path d="M930 232H1040" class="ln"/>
+
+  <rect x="60" y="345" width="1480" height="355" rx="22" class="lane"/><text x="90" y="389" class="h">한 번의 RC 적용 트랜잭션</text>
+  <rect x="100" y="440" width="230" height="135" rx="18" class="seq" filter="url(#s3)"/><text x="130" y="478" class="step">01 EVALUATE</text><text x="130" y="516" class="h">Sequencer</text><text x="130" y="548" class="sm">Keyed Focal이 카메라를 소유</text>
+  <rect x="400" y="440" width="230" height="135" rx="18" class="rc" filter="url(#s3)"/><text x="430" y="478" class="step">02 MUTE</text><text x="430" y="516" class="h">Focal Track 중지</text><text x="430" y="548" class="sm">RC가 쓸 짧은 제어 구간 확보</text>
+  <rect x="700" y="440" width="230" height="135" rx="18" class="rc" filter="url(#s3)"/><text x="730" y="478" class="step">03 APPLY</text><text x="730" y="516" class="h">Active Camera</text><text x="730" y="548" class="sm">현재 Shot의 Component에 Set</text>
+  <rect x="1000" y="440" width="230" height="135" rx="18" class="rc" filter="url(#s3)"/><text x="1030" y="478" class="step">04 RELEASE</text><text x="1030" y="516" class="h">Mute 해제</text><text x="1030" y="548" class="sm">Sequencer 제어권 복귀</text>
+  <rect x="1300" y="440" width="170" height="135" rx="18" class="seq" filter="url(#s3)"/><text x="1330" y="478" class="step">05 RESUME</text><text x="1330" y="516" class="h">재평가</text><text x="1330" y="548" class="sm">키 값 적용</text>
+  <path d="M330 507H400" class="ln"/><path d="M630 507H700" class="ln"/><path d="M930 507H1000" class="ln"/><path d="M1230 507H1300" class="ln"/>
+  <text x="100" y="636" class="key">핵심: Target / LastApplied / Actual / Ownership를 서로 다른 상태로 취급</text>
+
+  <rect x="60" y="740" width="1480" height="105" rx="20" fill="#3a201a" stroke="#fb7185" stroke-width="2"/><text x="95" y="782" class="h">과장 방지</text><text x="95" y="818" class="t">이 패턴은 Focal에서 사용자 PASS가 확인되었다. Aperture·Manual Focus·Light는 같은 수준의 최종 증거가 없으므로 “확장 패턴/추가 검증”으로 분리한다.</text>
+</svg>

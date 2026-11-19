@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Review 데이터 기반 반자동 검토 가능성</title>
+  <desc id="desc">Review DB의 메타데이터와 필기 자료를 시간순으로 정리하고, Unreal 장면을 복원한 뒤 Codex가 수정안을 제안하며 사람이 최종 판단하는 흐름을 보여준다.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#EEF4FF"/>
+    </linearGradient>
+    <linearGradient id="header" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#172033"/>
+      <stop offset="1" stop-color="#33466A"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="9" stdDeviation="12" flood-color="#172033" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M1,1 L11,6 L1,11 Z" fill="#64748B"/>
+    </marker>
+    <style>
+      .title { font: 700 43px "Pretendard", "Noto Sans KR", sans-serif; fill: #FFFFFF; }
+      .subtitle { font: 400 22px "Pretendard", "Noto Sans KR", sans-serif; fill: #D9E5FF; }
+      .step { font: 700 18px "Pretendard", "Noto Sans KR", sans-serif; letter-spacing: 1px; }
+      .node-title { font: 700 26px "Pretendard", "Noto Sans KR", sans-serif; fill: #172033; }
+      .node-body { font: 400 19px "Pretendard", "Noto Sans KR", sans-serif; fill: #4B5872; }
+      .small { font: 500 17px "Pretendard", "Noto Sans KR", sans-serif; fill: #526078; }
+      .verdict-title { font: 700 25px "Pretendard", "Noto Sans KR", sans-serif; fill: #172033; }
+      .verdict { font: 600 20px "Pretendard", "Noto Sans KR", sans-serif; fill: #172033; }
+      .foot { font: 500 18px "Pretendard", "Noto Sans KR", sans-serif; fill: #5F6B82; }
+      .connector { fill: none; stroke: #64748B; stroke-width: 4; marker-end: url(#arrow); }
+      .dashed { fill: none; stroke: #94A3B8; stroke-width: 3; stroke-dasharray: 10 10; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" rx="28" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1600" height="154" rx="28" fill="url(#header)"/>
+  <rect x="0" y="126" width="1600" height="28" fill="url(#header)"/>
+  <text x="76" y="69" class="title">Review 데이터 기반 반자동 검토 가능성</text>
+  <text x="78" y="112" class="subtitle">현재 구조로 자동 순회는 가능하며, 수정안 제안은 필기 의미 해석이 필요</text>
+
+  <!-- Main flow -->
+  <path class="connector" d="M322 376 H382"/>
+  <path class="connector" d="M622 376 H682"/>
+  <path class="connector" d="M922 376 H982"/>
+  <path class="connector" d="M1222 376 H1282"/>
+
+  <!-- Node 1 -->
+  <g filter="url(#shadow)">
+    <rect x="82" y="258" width="240" height="236" rx="24" fill="#E8F1FF" stroke="#4F7CAC" stroke-width="3"/>
+  </g>
+  <circle cx="120" cy="297" r="20" fill="#2563EB"/>
+  <text x="120" y="304" text-anchor="middle" class="step" fill="#FFFFFF">1</text>
+  <text x="154" y="306" class="node-title">Review DB</text>
+  <text x="114" y="352" class="node-body">ShotName · Frame</text>
+  <text x="114" y="386" class="node-body">DrawingData · PNG</text>
+  <text x="114" y="420" class="node-body">CreatedAt · Review ID</text>
+  <rect x="112" y="445" width="180" height="30" rx="15" fill="#CFE0FF"/>
+  <text x="202" y="466" text-anchor="middle" class="small">현재 확보된 근거</text>
+
+  <!-- Node 2 -->
+  <g filter="url(#shadow)">
+    <rect x="382" y="258" width="240" height="236" rx="24" fill="#FFF4D8" stroke="#D97706" stroke-width="3"/>
+  </g>
+  <circle cx="420" cy="297" r="20" fill="#D97706"/>
+  <text x="420" y="304" text-anchor="middle" class="step" fill="#FFFFFF">2</text>
+  <text x="454" y="306" class="node-title">시간순 큐</text>
+  <text x="414" y="352" class="node-body">Shot·Frame 기준 정렬</text>
+  <text x="414" y="386" class="node-body">미처리 Review 선택</text>
+  <text x="414" y="420" class="node-body">다음 항목 자동 진행</text>
+  <rect x="412" y="445" width="180" height="30" rx="15" fill="#FBE5B3"/>
+  <text x="502" y="466" text-anchor="middle" class="small">구현 가능성 높음</text>
+
+  <!-- Node 3 -->
+  <g filter="url(#shadow)">
+    <rect x="682" y="258" width="240" height="236" rx="24" fill="#F2ECFF" stroke="#7C3AED" stroke-width="3"/>
+  </g>
+  <circle cx="720" cy="297" r="20" fill="#7C3AED"/>
+  <text x="720" y="304" text-anchor="middle" class="step" fill="#FFFFFF">3</text>
+  <text x="754" y="306" class="node-title">장면 복원</text>
+  <text x="714" y="352" class="node-body">Unreal MCP 호출</text>
+  <text x="714" y="386" class="node-body">Shot 검색·Frame 이동</text>
+  <text x="714" y="420" class="node-body">PNG·필기 함께 표시</text>
+  <rect x="712" y="445" width="180" height="30" rx="15" fill="#DED1FA"/>
+  <text x="802" y="466" text-anchor="middle" class="small">기존 복원 로직 재사용</text>
+
+  <!-- Node 4 -->
+  <g filter="url(#shadow)">
+    <rect x="982" y="258" width="240" height="236" rx="24" fill="#E9F8F0" stroke="#159A62" stroke-width="3"/>
+  </g>
+  <circle cx="1020" cy="297" r="20" fill="#159A62"/>
+  <text x="1020" y="304" text-anchor="middle" class="step" fill="#FFFFFF">4</text>
+  <text x="1054" y="306" class="node-title">Codex 분석</text>
+  <text x="1014" y="352" class="node-body">필기와 PNG 비교</text>
+  <text x="1014" y="386" class="node-body">현재 장면 맥락 확인</text>
+  <text x="1014" y="420" class="node-body">자연어 수정안 생성</text>
+  <rect x="1012" y="445" width="180" height="30" rx="15" fill="#C9EFDC"/>
+  <text x="1102" y="466" text-anchor="middle" class="small">가능성 중간</text>
+
+  <!-- Node 5 -->
+  <g filter="url(#shadow)">
+    <rect x="1282" y="258" width="240" height="236" rx="24" fill="#FFFFFF" stroke="#334155" stroke-width="3"/>
+  </g>
+  <circle cx="1320" cy="297" r="20" fill="#334155"/>
+  <text x="1320" y="304" text-anchor="middle" class="step" fill="#FFFFFF">5</text>
+  <text x="1354" y="306" class="node-title">사람 판단</text>
+  <text x="1314" y="352" class="node-body">수정안 검토</text>
+  <text x="1314" y="386" class="node-body">승인·보류·기각</text>
+  <text x="1314" y="420" class="node-body">자동 수정은 별도 단계</text>
+  <rect x="1312" y="445" width="180" height="30" rx="15" fill="#E2E8F0"/>
+  <text x="1402" y="466" text-anchor="middle" class="small">안전한 검토 경계</text>
+
+  <!-- Boundary line -->
+  <path class="dashed" d="M1260 220 V530"/>
+  <rect x="1186" y="202" width="148" height="34" rx="17" fill="#F8FAFC" stroke="#94A3B8"/>
+  <text x="1260" y="225" text-anchor="middle" class="small">자동화 경계</text>
+
+  <!-- Feasibility summary -->
+  <g filter="url(#shadow)">
+    <rect x="82" y="590" width="1440" height="218" rx="25" fill="#FFFFFF"/>
+  </g>
+  <text x="118" y="635" class="verdict-title">객관적 평가</text>
+
+  <rect x="118" y="668" width="420" height="88" rx="18" fill="#E9F8F0"/>
+  <circle cx="156" cy="712" r="14" fill="#159A62"/>
+  <text x="184" y="704" class="verdict">자동 Review 순회</text>
+  <text x="184" y="734" class="small">가능성 높음 · 현재 메타데이터로 구성 가능</text>
+
+  <rect x="590" y="668" width="420" height="88" rx="18" fill="#FFF4D8"/>
+  <circle cx="628" cy="712" r="14" fill="#D97706"/>
+  <text x="656" y="704" class="verdict">수정안 제안</text>
+  <text x="656" y="734" class="small">가능성 중간 · 필기 의미 해석에 영향</text>
+
+  <rect x="1062" y="668" width="420" height="88" rx="18" fill="#FFE8E8"/>
+  <circle cx="1100" cy="712" r="14" fill="#DC2626"/>
+  <text x="1128" y="704" class="verdict">필기만으로 자동 수정</text>
+  <text x="1128" y="734" class="small">현재는 어려움 · 대상과 의도가 불명확</text>
+
+  <text x="800" y="855" text-anchor="middle" class="foot">결론: 자동 재생과 수정안 제안은 타당하며, 최종 변경은 사람이 판단하는 범위가 현실적</text>
+</svg>
